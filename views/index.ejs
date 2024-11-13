@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Data Sensor Suhu</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+      /* Style for table container */
+      #data-display {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Style for table headers */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+
+      th {
+        background-color: #f2f2f2;
+        color: #333;
+        font-weight: bold;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      h3 {
+        font-family: "Arial", sans-serif;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      /* Style for the form container */
+      #data-form {
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #f9f9f9;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      /* Style for form headings */
+      #data-form h3 {
+        text-align: center;
+        font-family: "Arial", sans-serif;
+        color: #333;
+      }
+
+      /* Style for form labels */
+      #data-form label {
+        display: block;
+        margin-bottom: 8px;
+        font-family: "Arial", sans-serif;
+        font-size: 14px;
+        color: #333;
+      }
+
+      /* Style for form inputs */
+      #data-form input[type="number"] {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 16px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-family: "Arial", sans-serif;
+        font-size: 14px;
+      }
+
+      /* Style for the submit button */
+      #data-form button {
+        width: 100%;
+        padding: 10px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: "Arial", sans-serif;
+        font-size: 16px;
+      }
+
+      /* Button hover effect */
+      #data-form button:hover {
+        background-color: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Data Sensor Suhu</h1>
+    <div id="data-display">
+      <!-- Data dari JSON akan ditampilkan di sini -->
+    </div>
+    <canvas id="myChart" width="400" height="200"></canvas>
+
+    <form id="data-form" action="/suhu" method="post">
+      <h3>Input Data</h3>
+      <h3>Data Nilai Suhu, Humidity, Kecerahan, dan Timestamp:</h3>
+      <label>Index:</label>
+      <input type="number" id="idx" name="idx" required /><br />
+
+      <label>Suhu:</label>
+      <input type="number" id="suhu" name="suhu" required /><br />
+
+      <label>Humidity:</label>
+      <input type="number" id="humidity" name="humidity" required /><br />
+
+      <label>Kecerahan:</label>
+      <input type="number" id="kecerahan" name="kecerahan" required /><br />
+
+      <button type="submit">Kirim Data</button>
+    </form>
+
+    <script>
+      let existingData = {};
+      async function fetchData() {
+        try {
+          const response = await fetch("http://localhost:3000/suhu");
+          const jsonData = await response.json();
+          existingData = jsonData;
+          console.log(existingData);
+          displayData(jsonData);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+
+      function formatTimestamp(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0"); // Menambahkan leading zero
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const seconds = String(date.getSeconds()).padStart(2, "0");
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      }
+
+      function displayData(data) {
+        const dataDisplay = document.getElementById("data-display");
+
+        // Menampilkan data suhu max, min, rata-rata
+        let tableHTML = `<h3>Data Suhu:</h3>
+                             <table border="1">
+                                 <tr>
+                                     <th>Suhu Max</th>
+                                     <th>Suhu Min</th>
+                                     <th>Suhu Rata-rata</th>
+                                 </tr>
+                                 <tr>
+                                     <td>${data.suhumax}</td>
+                                     <td>${data.suhumin}</td>
+                                     <td>${data.suhurata}</td>
+                                 </tr>
+                             </table>`;
+
+        tableHTML += `<h3>Nilai Suhu Max dan Kelembaban:</h3>
+                          <table border="1">
+                              <tr>
+                                  <th>Index</th>
+                                  <th>Suhu</th>
+                                  <th>Humidity</th>
+                                  <th>Kecerahan</th>
+                                  <th>Timestamp</th>
+                              </tr>`;
+        data.nilai_suhu_max_humid_max.forEach((item) => {
+          tableHTML += `<tr>
+                                  <td>${item.idx}</td>
+                                  <td>${item.suhu}</td>
+                                  <td>${item.humid}</td>
+                                  <td>${item.kecerahan}</td>
+                                  <td>${item.timestamp}</td>
+                              </tr>`;
+        });
+        tableHTML += `</table>`;
+
+        tableHTML += `<h3>Month-Year Max:</h3>
+                          <table border="1">
+                              <tr>
+                                  <th>Month-Year</th>
+                              </tr>`;
+        data.month_year_max.forEach((item) => {
+          tableHTML += `<tr><td>${item.month_year}</td></tr>`;
+        });
+        tableHTML += `</table>`;
+
+        dataDisplay.innerHTML = tableHTML;
+      }
+
+      async function postData() {
+        const suhu = document.getElementById("suhu").value;
+        const humidity = document.getElementById("humidity").value;
+        const kecerahan = document.getElementById("kecerahan").value;
+        const idx = document.getElementById("idx").value;
+        const timestamp = formatTimestamp(new Date());
+
+        const newData = {
+          idx: parseFloat(idx),
+          suhu: parseFloat(suhu),
+          humid: parseFloat(humidity),
+          kecerahan: parseFloat(kecerahan),
+          timestamp: timestamp,
+        };
+
+        existingData.nilai_suhu_max_humid_max.push(newData);
+
+        const dataToSend = {
+          nilai_suhu_max_humid_max: existingData.nilai_suhu_max_humid_max,
+        };
+
+        try {
+          const response = await fetch("http://localhost:3000/suhu", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(dataToSend),
+          });
+          const result = await response.json();
+          alert(result.message);
+          fetchData();
+        } catch (error) {
+          console.error("Error posting data:", error);
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        fetch("/suhu")
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data);
+            const labels = data.nilai_suhu_max_humid_max.map(
+              (entry) => entry.timestamp
+            );
+            const suhuData = data.nilai_suhu_max_humid_max.map(
+              (entry) => entry.suhu
+            );
+            const humidData = data.nilai_suhu_max_humid_max.map(
+              (entry) => entry.humid
+            );
+            const kecerahanData = data.nilai_suhu_max_humid_max.map(
+              (entry) => entry.kecerahan
+            );
+
+            // Create chart
+            const ctx = document.getElementById("myChart").getContext("2d");
+            const myChart = new Chart(ctx, {
+              type: "line", // Type of chart
+              data: {
+                labels: labels, // X-axis labels
+                datasets: [
+                  {
+                    label: "Suhu",
+                    data: suhuData,
+                    borderColor: "rgba(255, 99, 132, 1)",
+                    borderWidth: 1,
+                    fill: false,
+                  },
+                  {
+                    label: "Humidity",
+                    data: humidData,
+                    borderColor: "rgba(54, 162, 235, 1)",
+                    borderWidth: 1,
+                    fill: false,
+                  },
+                  {
+                    label: "Kecerahan",
+                    data: kecerahanData,
+                    borderColor: "rgba(75, 192, 192, 1)",
+                    borderWidth: 1,
+                    fill: false,
+                  },
+                ],
+              },
+              options: {
+                scales: {
+                  x: {
+                    type: "time",
+                    time: {
+                      parser: "yyyy-MM-dd HH:mm:ss",
+                      tooltipFormat: "ll HH:mm",
+                      unit: "month",
+                    },
+                  },
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              },
+            });
+          });
+
+        // Extract data
+      });
+
+      window.onload = fetchData;
+    </script>
+  </body>
+</html>

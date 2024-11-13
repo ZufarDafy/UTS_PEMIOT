@@ -1,0 +1,272 @@
+#include <WiFi.h>
+#include "PubSubClient.h"
+#include "DHTesp.h"
+
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
+const char* ssid = "Wokwi-GUEST"; // Add your WiFi SSID
+const char* password = ""; // Add your WiFi Password
+
+char* mqttServer = "broker.hivemq.com";
+int mqttPort = 1883;
+
+const int DHT_PIN = 32;
+const int relayPin = 13;
+
+#define LED_RED 18
+#define LED_YELLOW 5 
+#define LED_GREEN 17
+#define BUZZER 8
+
+DHTesp dhtSensor;
+
+void reconnect() {
+  Serial.println("Connecting to MQTT Broker...");
+  while (!mqttClient.connected()) {
+    Serial.println("Reconnecting to MQTT Broker..");
+    String clientId = "ESP32Client-";
+    clientId += String(random(0xffff), HEX);
+
+    if (mqttClient.connect(clientId.c_str())) {
+      Serial.println("Connected.");
+    }      
+  }
+}
+
+void setupMQTT() {
+  mqttClient.setServer(mqttServer, mqttPort);
+  mqttClient.setCallback(callback);
+}
+
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Callback - Message: ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+  }
+  Serial.println();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Hello, ESP32!");
+  dhtSensor.setup(DHT_PIN, DHTesp::DHT22);
+  pinMode(relayPin, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Connected to Wi-Fi");
+
+  setupMQTT();
+}
+
+void loop() {
+  if (!mqttClient.connected()) {
+    reconnect();
+  }
+  mqttClient.loop();
+
+  TempAndHumidity data = dhtSensor.getTempAndHumidity();
+  float temperature = data.temperature;
+  float humidity = data.humidity;
+
+  // LED and Buzzer Control based on Temperature
+  bool isRedActive = false;
+  bool isYellowActive = false;
+  bool isGreenActive = false;
+  bool isBuzzerActive = false;
+
+  if (temperature > 35) {
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(BUZZER, HIGH);
+    isRedActive = true;
+    isBuzzerActive = true;
+    digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(LED_GREEN, LOW);
+  } else if (temperature >= 30 && temperature <= 35) {
+    digitalWrite(LED_YELLOW, HIGH);
+    isYellowActive = true;
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(BUZZER, LOW);
+  } else {
+    digitalWrite(LED_GREEN, HIGH);
+    isGreenActive = true;
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(BUZZER, LOW);
+  }
+
+  // Relay Control based on Temperature
+  if (temperature >= 35) {
+    digitalWrite(relayPin, HIGH);  // Turn on relay (assuming HIGH activates the relay)
+  } else {
+    digitalWrite(relayPin, LOW);   // Turn off relay
+  }
+
+  // Send Temperature, Humidity, and Status to MQTT
+  char tempString[8];
+  char humString[8];
+  dtostrf(temperature, 1, 2, tempString);
+  dtostrf(humidity, 1, 2, humString);
+
+  mqttClient.publish("monitoring/temperature", tempString);
+  mqttClient.publish("monitoring/humidity", humString);
+
+  // Send status of each LED and buzzer
+  String statusMessage = String("Red LED: ") + (isRedActive ? "ON" : "OFF") +
+                         ", Yellow LED: " + (isYellowActive ? "ON" : "OFF") +
+                         ", Green LED: " + (isGreenActive ? "ON" : "OFF") +
+                         ", Buzzer: " + (isBuzzerActive ? "ON" : "OFF") +
+                         ", Relay: " + ((temperature >= 35) ? "ON" : "OFF");
+  mqttClient.publish("monitoring/status", statusMessage.c_str());
+
+  delay(2000);  // Adjust delay as needed
+}
+
+
+
+batas suci
+
+#include <WiFi.h>
+#include "PubSubClient.h"
+#include "DHTesp.h"
+
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
+const char* ssid = "Wokwi-GUEST"; // Add your WiFi SSID
+const char* password = ""; // Add your WiFi Password
+
+char* mqttServer = "broker.hivemq.com";
+int mqttPort = 1883;
+
+const int DHT_PIN = 32;
+const int relayPin = 13;
+
+#define LED_RED 18
+#define LED_YELLOW 5 
+#define LED_GREEN 17
+#define BUZZER 8
+
+DHTesp dhtSensor;
+
+void reconnect() {
+  Serial.println("Connecting to MQTT Broker...");
+  while (!mqttClient.connected()) {
+    Serial.println("Reconnecting to MQTT Broker..");
+    String clientId = "ESP32Client-";
+    clientId += String(random(0xffff), HEX);
+
+    if (mqttClient.connect(clientId.c_str())) {
+      Serial.println("Connected.");
+    }      
+  }
+}
+
+void setupMQTT() {
+  mqttClient.setServer(mqttServer, mqttPort);
+  mqttClient.setCallback(callback);
+}
+
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print("Callback - Message: ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+  }
+  Serial.println();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Hello, ESP32!");
+  dhtSensor.setup(DHT_PIN, DHTesp::DHT22);
+  pinMode(relayPin, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Connected to Wi-Fi");
+
+  setupMQTT();
+}
+
+void loop() {
+  if (!mqttClient.connected()) {
+    reconnect();
+  }
+  mqttClient.loop();
+
+  TempAndHumidity data = dhtSensor.getTempAndHumidity();
+  float temperature = data.temperature;
+  float humidity = data.humidity;
+
+  // LED and Buzzer Control based on Temperature
+  bool isRedActive = false;
+  bool isYellowActive = false;
+  bool isGreenActive = false;
+  bool isBuzzerActive = false;
+
+  if (temperature > 35) {
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(BUZZER, HIGH);
+    isRedActive = true;
+    isBuzzerActive = true;
+    digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(LED_GREEN, LOW);
+  } else if (temperature >= 30 && temperature <= 35) {
+    digitalWrite(LED_YELLOW, HIGH);
+    isYellowActive = true;
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(BUZZER, LOW);
+  } else {
+    digitalWrite(LED_GREEN, HIGH);
+    isGreenActive = true;
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_YELLOW, LOW);
+    digitalWrite(BUZZER, LOW);
+  }
+
+  // Relay Control based on Temperature
+  if (temperature >= 35) {
+    digitalWrite(relayPin, HIGH);  // Turn on relay (assuming HIGH activates the relay)
+  } else {
+    digitalWrite(relayPin, LOW);   // Turn off relay
+  }
+
+  // Send Temperature, Humidity, and Status to MQTT
+  char tempString[8];
+  char humString[8];
+  dtostrf(temperature, 1, 2, tempString);
+  dtostrf(humidity, 1, 2, humString);
+
+  mqttClient.publish("monitoring/temperature", tempString);
+  mqttClient.publish("monitoring/humidity", humString);
+
+  // Send status of each LED and buzzer
+  String statusMessage = String("Red LED: ") + (isRedActive ? "ON" : "OFF") +
+                         ", Yellow LED: " + (isYellowActive ? "ON" : "OFF") +
+                         ", Green LED: " + (isGreenActive ? "ON" : "OFF") +
+                         ", Buzzer: " + (isBuzzerActive ? "ON" : "OFF") +
+                         ", Relay: " + ((temperature >= 35) ? "ON" : "OFF");
+  mqttClient.publish("monitoring/status", statusMessage.c_str());
+
+  delay(2000);  // Adjust delay as needed
+}
+
